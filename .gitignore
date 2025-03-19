@@ -1,0 +1,11 @@
+.env
+.venv
+postgres_data
+redis_data
+__pycache__
+test.db
+.pytest_cache
+test.py
+test.txt
+alembic
+alembic.ini
