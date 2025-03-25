@@ -22,7 +22,7 @@ def test_create_link(client: TestClient):
     This test checks that the create_link function returns a response with status code 200,
     and that the response data contains the expected fields and values.
     """
-    payload = {"original_url": "http://example.com"}
+    payload = {"original_url": f"http://example.com/"}
     response = client.post("/api/links/", json=payload)
     assert response.status_code == 200
     data = response.json()
@@ -51,7 +51,7 @@ def test_redirect_link(client: TestClient):
     This test checks that the redirect_link function returns a response with status code 200,
     and that the response data contains the expected fields and values.
     """
-    payload = {"original_url": "http://example.org"}
+    payload = {"original_url": "http://example.com/"}
     response = client.post("/api/links/", json=payload)
     assert response.status_code == 200
     data = response.json()

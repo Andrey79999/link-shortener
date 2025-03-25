@@ -1,11 +1,11 @@
 from pydantic import BaseModel, HttpUrl
 
 class LinkCreate(BaseModel):
-    original_url: str
+    original_url: HttpUrl
     
 class LinkResponse(BaseModel):
     id: int
-    original_url: str
+    original_url: HttpUrl
     short_code: str
     clicks: int
     class Config:

@@ -49,5 +49,17 @@ services:
       options:
         max-size: 5m
 
+  test_db:
+    image: postgres:16.8-alpine3.21
+    container_name: test_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: test_${POSTGRES_DB}
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./test_postgres_data:/var/lib/postgresql/data
+
 volumes:
   postgres_data:

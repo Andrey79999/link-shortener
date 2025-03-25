@@ -1,45 +1,78 @@
+# tests/conftest.py
 import os
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-import sys
-from dotenv import load_dotenv
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
-from app.db.session import Base, get_db
+import dotenv
+from sqlalchemy import inspect
+import logging
+
+dotenv.load_dotenv()
+
+# Настройка логгера для отладки
+logging.basicConfig()
+logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql://user:password@localhost:5433/test_shortener"
+)
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+# Импорт AFTER environment variables setup
 from app.main import app
-import app.db.session as db_session 
-from app.models import link 
+from app.db.session import Base, get_db
 
-load_dotenv()
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autoflush=False, bind=engine)
-
-db_session.engine = engine
-db_session.SessionLocal = TestingSessionLocal
+# Явный импорт ВСЕХ моделей
+from app.models.link import Link  # основная модель
+# from app.models.other import OtherModel  # если есть другие модели
 
 @pytest.fixture(scope="session")
-def db():
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
-        Base.metadata.drop_all(bind=engine)
+def engine():
+    engine = create_engine(TEST_DATABASE_URL)
+    
+    # Проверка существования таблиц
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        print("Existing tables:", inspector.get_table_names())
+    
+    # Принудительное удаление и создание таблиц
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    
+    yield engine
+    engine.dispose()
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
+def db(engine):
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = sessionmaker(bind=connection)()
+    
+    yield session
+    
+    session.close()
+    transaction.rollback()
+    connection.close()
+
+@pytest.fixture
 def client(db):
+    # Переопределение зависимости
     def override_get_db():
         try:
+            db.begin_nested()  # Для SAVEPOINT
             yield db
         finally:
-            pass
-
+            db.rollback()
+    
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
+    yield TestClient(app)
     app.dependency_overrides.clear()
+
+# Добавляем проверку после тестов
+@pytest.fixture(scope="session", autouse=True)
+def final_check(engine):
+    yield
+    with engine.connect() as conn:
+        print("\nFinal tables:", inspect(engine).get_table_names())

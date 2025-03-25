@@ -9,3 +9,4 @@ test.py
 test.txt
 alembic
 alembic.ini
+test_postgres_data
