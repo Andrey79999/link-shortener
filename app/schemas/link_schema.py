@@ -1,7 +1,6 @@
 from pydantic import BaseModel, HttpUrl
 
 class LinkCreate(BaseModel):
-    user_id: int
     original_url: HttpUrl
 
 class LinkResponse(BaseModel):
