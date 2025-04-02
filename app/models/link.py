@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, DateTime, String
+from sqlalchemy import Column, Integer, DateTime, String, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from db.session import Base
 
@@ -10,3 +11,5 @@ class Link(Base):
     short_code = Column(String, unique=True, index=True, nullable=False)
     clicks = Column(Integer, default=0)
     created = Column(DateTime(timezone=True), server_default=func.now())
+    user_id = Column(Integer, ForeignKey("users.id"))
+    user = relationship("User", back_populates="links")
