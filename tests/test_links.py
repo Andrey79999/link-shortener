@@ -22,10 +22,12 @@ def test_create_link(client: TestClient):
     This test checks that the create_link function returns a response with status code 200,
     and that the response data contains the expected fields and values.
     """
-    payload = {"original_url": f"http://example.com/"}
+    payload = {"original_url": f"http://example.com/",
+               "user_id": 1}
     response = client.post("/api/links/", json=payload)
     assert response.status_code == 200
     data = response.json()
+    assert data["user_id"] == payload["user_id"]
     assert "id" in data
     assert data["original_url"] == payload["original_url"]
     assert "short_code" in data
