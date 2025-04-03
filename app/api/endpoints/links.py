@@ -43,7 +43,7 @@ def redirect_link(short_code: str, db: Session = Depends(get_db)):
     return db_link
 
 
-@router.get("/{user_id}/links", response_model=List[LinkResponse])
-def get_user_links(user_id: int, db: Session = Depends(get_db)):
-    db_link = db.query(Link).filter(Link.user_id == user_id).all()
+@router.post("/my-links", response_model=List[LinkResponse])
+def get_user_links(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_link = db.query(Link).filter(Link.user_id == current_user.id).all()
     return db_link
