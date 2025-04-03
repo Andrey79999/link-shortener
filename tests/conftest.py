@@ -7,7 +7,7 @@ import dotenv
 from sqlalchemy import inspect
 import logging
 
-dotenv.load_dotenv()
+dotenv.load_dotenv(override=True)
 
 logging.basicConfig()
 logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
@@ -18,10 +18,15 @@ TEST_DATABASE_URL = os.getenv(
 )
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
-from app.main import app
-from app.db.session import Base, get_db
+import sys
+import os
+sys.path.append(os.path.abspath("app"))
 
-from app.models.link import Link
+from main import app
+from db.session import Base, get_db
+
+from models.link import Link
+from models.user import User, AuthMethod
 
 @pytest.fixture(scope="session")
 def engine():

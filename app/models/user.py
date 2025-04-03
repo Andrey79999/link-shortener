@@ -6,6 +6,7 @@ from db.session import Base
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
     id = Column(Integer, primary_key=True, index=True)
     created = Column(DateTime(timezone=True), server_default=func.now())
     user_name = Column(String, nullable=False)
@@ -15,6 +16,7 @@ class User(Base):
 
 class AuthMethod(Base):
     __tablename__ = "auth_methods"
+    __table_args__ = {'extend_existing': True}
     id = Column(Integer, primary_key=True, index=True)
     provider = Column(String, nullable=False)
     provider_user_id = Column(String, nullable=False)

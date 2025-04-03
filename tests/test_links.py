@@ -1,77 +1,123 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.services.link_service import generate_short_code
 
 
-def test_generate_short_code():
-    """
-    Test the generate_short_code function.
+def register_user(client: TestClient, email: str, password: str):
+    response = client.post("/api/user/register", json={"email": email, "password": password})
+    assert response.status_code == 200, response.text
+    return response.json()
 
-    This test checks that the generate_short_code function returns a string of length 6.
-    """
-    url = "http://example.com"
-    short_code = generate_short_code(url)
-    assert isinstance(short_code, str)
-    assert len(short_code) == 6
-
-
-def test_create_link(client: TestClient):
-    """
-    Test the create_link function.
-
-    This test checks that the create_link function returns a response with status code 200,
-    and that the response data contains the expected fields and values.
-    """
-    payload = {"original_url": f"http://example.com/",
-               "user_id": 1}
-    response = client.post("/api/links/", json=payload)
-    assert response.status_code == 200
+def login_user(client: TestClient, email: str, password: str):
+    response = client.post("/api/user/login", data={"username": email, "password": password})
+    assert response.status_code == 200, response.text
     data = response.json()
-    assert data["user_id"] == payload["user_id"]
+    assert "access_token" in data
+    return data["access_token"]
+
+def telegram_login(client: TestClient, telegram_id: int, user_name: str):
+    response = client.post("/api/user/telegram", json={"telegram_id": telegram_id, "user_name": user_name})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+def create_link(client: TestClient, token: str, original_url: str):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/api/links/", json={"original_url": original_url}, headers=headers)
+    return response
+
+@pytest.fixture
+def user_credentials():
+    return {"email": "test@example.com", "password": "secret"}
+
+@pytest.fixture
+def auth_token(client: TestClient, user_credentials):
+    token = login_user(client, user_credentials["email"], user_credentials["password"])
+    return token
+
+def test_root(client: TestClient):
+    response = client.get("/")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "message" in data
+    assert data["message"] == "Welcome to URL Shortener Service"
+
+def test_register_user(client: TestClient, user_credentials):
+    user = register_user(client, user_credentials["email"], user_credentials["password"])
+    assert "id" in user
+    assert user["user_name"] == user_credentials["email"]
+
+def test_register_existing_user(client: TestClient, user_credentials):
+    register_user(client, user_credentials["email"], user_credentials["password"])
+    register_user(client, user_credentials["email"], user_credentials["password"])
+    response = client.post("/api/user/register", json=user_credentials)
+    assert response.status_code == 400
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "A user with this email already exists"
+
+def test_login_user(client: TestClient, user_credentials):
+    token = login_user(client, user_credentials["email"], user_credentials["password"])
+    assert isinstance(token, str)
+
+def test_login_invalid_user(client: TestClient, user_credentials):
+    response = client.post("/api/user/login", data={"username": user_credentials["email"], "password": "wrong"})
+    assert response.status_code == 401
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Incorrect credentials"
+
+# def test_telegram_login(client: TestClient):
+#     telegram_id = 123456
+#     user_name = "telegramUser"
+#     user1 = telegram_login(client, telegram_id, user_name)
+#     user2 = telegram_login(client, telegram_id, user_name)
+#     assert user1["id"] == user2["id"]
+#     assert user1["user_name"] == user_name
+
+def test_create_link(auth_token: str, client: TestClient):
+    original_url = "http://example.com/"
+    response = create_link(client, auth_token, original_url)
+    assert response.status_code == 200, response.text
+    data = response.json()
     assert "id" in data
-    assert data["original_url"] == payload["original_url"]
+    assert data["original_url"] == original_url
     assert "short_code" in data
     assert data["clicks"] == 0
 
-
-def test_create_link_invalid_url(client: TestClient):
-    """
-    Test the create_link function with an invalid URL.
-
-    This test checks that the create_link function returns a response with status code 422
-    when an invalid URL is provided.
-    """
-    payload = {"original_url": "not-a-valid-url"}
-    response = client.post("/api/links/", json=payload)
+def test_create_link_invalid_url(auth_token: str, client: TestClient):
+    original_url = "not-a-valid-url"
+    response = create_link(client, auth_token, original_url)
     assert response.status_code == 422
 
-
-def test_redirect_link(client: TestClient):
-    """
-    Test the redirect_link function.
-
-    This test checks that the redirect_link function returns a response with status code 200,
-    and that the response data contains the expected fields and values.
-    """
-    payload = {"original_url": "http://example.com/"}
-    response = client.post("/api/links/", json=payload)
-    assert response.status_code == 200
+def test_redirect_link(auth_token: str, client: TestClient):
+    original_url = "http://example.com/"
+    response = create_link(client, auth_token, original_url)
     data = response.json()
     short_code = data["short_code"]
-
+    
+    
     response = client.get(f"/api/links/{short_code}")
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
-    assert data["original_url"] == payload["original_url"]
-
+    assert data["original_url"] == original_url
+    
+    assert data["clicks"] >= 1
 
 def test_redirect_non_existing_link(client: TestClient):
-    """
-    Test the redirect_link function with a non-existing short code.
-
-    This test checks that the redirect_link function returns a response with status code 404
-    when a non-existing short code is provided.
-    """
     response = client.get("/api/links/nonexistent")
     assert response.status_code == 404
+    data = response.json()
+    assert "detail" in data
+    assert data["detail"] == "Link not found"
+
+def test_get_user_links(auth_token: str, client: TestClient):
+    original_url = "http://example.com/"
+    create_resp = create_link(client, auth_token, original_url)
+    assert create_resp.status_code == 200, create_resp.text
     
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    response = client.post("/api/links/my-links", headers=headers)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    assert any(link["original_url"] == original_url for link in data)
