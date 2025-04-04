@@ -121,3 +121,27 @@ def test_get_user_links(auth_token: str, client: TestClient):
     assert isinstance(data, list)
     assert len(data) >= 1
     assert any(link["original_url"] == original_url for link in data)
+
+
+def test_delete_multiple_links(auth_token: str, client: TestClient):
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    
+    response1 = create_link(client, auth_token, "http://example1.com/")
+    response2 = create_link(client, auth_token, "http://example2.com/")
+    link1 = response1.json()  
+    link2 = response2.json()
+    
+    payload = [
+        {"id": link1["id"]},
+        {"id": link2["id"]}
+    ]
+    print(payload)
+    response = client.post("/api/links/delete-links", headers=headers, json=payload)
+    assert response.status_code == 200
+    assert response.json() is True
+
+    response = client.get(f"/api/links/{link1['id']}", headers=headers)
+    assert response.status_code == 404
+    response = client.get(f"/api/links/{link2['id']}", headers=headers)
+    assert response.status_code == 404
+

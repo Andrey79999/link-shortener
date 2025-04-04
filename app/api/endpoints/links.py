@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from services.auth_service import get_current_user
-from schemas.link_schema import LinkCreate, LinkResponse
+from schemas.link_schema import LinkCreate, LinkResponse, LinkDelete
 from models.link import Link
 from models.user import User
 from db.session import get_db
@@ -47,3 +47,18 @@ def redirect_link(short_code: str, db: Session = Depends(get_db)):
 def get_user_links(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db_link = db.query(Link).filter(Link.user_id == current_user.id).all()
     return db_link
+
+
+@router.post("/delete-links", response_model=bool)
+def delete_links(
+    delete_links: List[LinkDelete],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    ids = [link.id for link in delete_links]
+    query = db.query(Link).filter(Link.id.in_(ids), Link.user_id == current_user.id)
+    if query.count() != len(ids):
+        raise HTTPException(status_code=404, detail="Some links not found")
+    query.delete(synchronize_session=False)
+    db.commit()
+    return True

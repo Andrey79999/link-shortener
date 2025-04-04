@@ -9,5 +9,8 @@ class LinkResponse(BaseModel):
     original_url: HttpUrl
     short_code: str
     clicks: int
-    class Config:
-        orm_mode = True
+    class ConfigDict:
+        from_attributes = True
+
+class LinkDelete(BaseModel):
+    id: int

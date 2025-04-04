@@ -51,7 +51,7 @@ def db(engine):
     yield session
     
     session.close()
-    transaction.rollback()
+    # transaction.rollback()
     connection.close()
 
 @pytest.fixture

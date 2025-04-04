@@ -23,5 +23,5 @@ class UserResponse(BaseModel):
     id: int
     user_name: str
 
-    class Config:
-        orm_mode = True
+    class ConfigDict:
+        from_attributes = True
