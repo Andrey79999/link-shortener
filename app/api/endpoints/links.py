@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import List
 from services.auth_service import get_current_user
-from schemas.link_schema import LinkCreate, LinkResponse, LinkDelete
+from schemas.link_schema import LinkCreate, LinkResponse, LinkDelete, LinkCreateCustom
 from models.link import Link
 from models.user import User
 from db.session import get_db
@@ -16,7 +16,8 @@ router= APIRouter()
 def create_link(
     link: LinkCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)):
+    current_user: User = Depends(get_current_user)
+):
     short_code = generate_short_code()
     db_link = db.query(Link).filter(Link.original_url == str(link.original_url), Link.user_id == current_user.id).first()
     if not db_link:
@@ -26,6 +27,32 @@ def create_link(
             short_code=short_code
         )
         db.add(db_link)
+        db.commit()
+        db.refresh(db_link)
+    return db_link
+
+
+@router.post("/create-custom-link", response_model=LinkResponse)
+def create_custom_link(
+    link: LinkCreateCustom,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if db.query(Link).filter(Link.short_code == link.custom_code).first():
+        raise HTTPException(status_code=400, detail="Custom code already exists")
+    
+    db_link = db.query(Link).filter(Link.original_url == str(link.original_url), Link.user_id == current_user.id).first()
+    if not db_link:
+        db_link = Link(
+            user_id=current_user.id,
+            original_url=str(link.original_url),
+            short_code=link.custom_code
+        )
+        db.add(db_link)
+        db.commit()
+        db.refresh(db_link)
+    else:
+        db.query(Link).filter(Link.id == db_link.id).update({"short_code": link.custom_code})
         db.commit()
         db.refresh(db_link)
     return db_link

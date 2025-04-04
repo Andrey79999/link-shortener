@@ -24,6 +24,14 @@ def create_link(client: TestClient, token: str, original_url: str):
     response = client.post("/api/links/", json={"original_url": original_url}, headers=headers)
     return response
 
+def create_custom_link(client: TestClient, token: str, original_url: str, short_code: str):
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post("/api/links/create-custom-link",
+                           json={"original_url": original_url,
+                                 "custom_code": short_code},
+                           headers=headers)
+    return response
+
 @pytest.fixture
 def user_credentials():
     return {"email": "test@example.com", "password": "secret"}
@@ -82,7 +90,27 @@ def test_create_link(auth_token: str, client: TestClient):
     assert data["original_url"] == original_url
     assert "short_code" in data
     assert data["clicks"] == 0
+    
+def test_create_custom_link(auth_token: str, client: TestClient):
+    original_url = "http://example.com/"
+    custom_code = "custom_code"
+    response = create_custom_link(client, auth_token, original_url, custom_code)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert "id" in data
+    assert data["original_url"] == original_url
+    assert "short_code" in data
+    assert data["clicks"] == 0
 
+def test_create_exist_custom_link(auth_token: str, client: TestClient):
+    original_url = "http://example.com/"
+    custom_code = "custom_code"
+    create_custom_link(client, auth_token, original_url, custom_code)
+    create_custom_link(client, auth_token, original_url, custom_code)
+    response = create_custom_link(client, auth_token, original_url, custom_code)
+    print(response.status_code)
+    assert response.status_code == 400, response.text
+    
 def test_create_link_invalid_url(auth_token: str, client: TestClient):
     original_url = "not-a-valid-url"
     response = create_link(client, auth_token, original_url)
