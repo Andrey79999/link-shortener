@@ -4,9 +4,9 @@ from api.endpoints.links import router as links_router
 from api.endpoints.user import router as user_router
 from middleware.request_logger import log_request
 
-# from db.session import Base, engine
-# Base.metadata.drop_all(bind=engine)
-# Base.metadata.create_all(bind=engine)
+from db.session import Base, engine
+# #Base.metadata.drop_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="URL Shortener Service")
     

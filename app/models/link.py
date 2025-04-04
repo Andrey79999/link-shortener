@@ -13,3 +13,16 @@ class Link(Base):
     created = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.id"))
     user = relationship("User", back_populates="links")
+    stats = relationship("LinkStats", back_populates="link")
+
+class LinkStats(Base):
+    __tablename__ = "links_stats"
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer, primary_key=True, index=True)
+    link_id = Column(Integer, ForeignKey("links.id"))
+    clicked_at = Column(DateTime(timezone=True), server_default=func.now())
+    ip = Column(String(45))
+    country = Column(String(100))
+    city = Column(String(100))
+    user_agent = Column(String(256))
+    link = relationship("Link", back_populates="stats")

@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from typing import List
 from services.auth_service import get_current_user
 from schemas.link_schema import LinkCreate, LinkResponse, LinkDelete, LinkCreateCustom
-from models.link import Link
+from models.link import Link, LinkStats
 from models.user import User
 from db.session import get_db
-from services.link_service import generate_short_code
+from services.link_service import generate_short_code, get_geo_info
 from tasks.process import process_statistics
 
 router= APIRouter()
@@ -59,14 +59,21 @@ def create_custom_link(
 
 
 @router.get("/{short_code}", response_model=LinkResponse)
-def redirect_link(short_code: str, db: Session = Depends(get_db)):
+def redirect_link(short_code: str, request: Request, db: Session = Depends(get_db)):
     db_link = db.query(Link).filter(Link.short_code == short_code).first()
     if not db_link:
         raise HTTPException(status_code=404, detail="Link not found")
     db_link.clicks += 1
+    country, city = get_geo_info(request.client.host)
+    stats = LinkStats(
+        link_id = db_link.id,
+        ip = request.client.host,
+        user_agent = request.headers.get("User-Agent"),
+        country = country,
+        city = city
+    )
+    db.add(stats)
     db.commit()
-    # TODO
-    # process_statistics.delay(db_link.id)
     return db_link
 
 

@@ -10,3 +10,4 @@ celery==5.4.0
 redis==5.2.1
 python-jose==3.4.0
 python-multipart==0.0.20
+geoip2==5.0.1
