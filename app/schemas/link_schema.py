@@ -6,6 +6,9 @@ class LinkCreate(BaseModel):
 class LinkCreateCustom(LinkCreate):
     custom_code: str
 
+class LinkUpdateCustom(LinkCreateCustom):
+    link_id: int
+
 class LinkResponse(BaseModel):
     id: int
     user_id: int
