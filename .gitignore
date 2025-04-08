@@ -11,3 +11,4 @@ alembic
 alembic.ini
 test_postgres_data
 GeoLite2-City.mmdb
+.vscode
