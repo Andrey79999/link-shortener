@@ -163,7 +163,6 @@ def test_delete_multiple_links(auth_token: str, client: TestClient):
         {"id": link1["id"]},
         {"id": link2["id"]}
     ]
-    print(payload)
     response = client.post("/api/links/delete-links", headers=headers, json=payload)
     assert response.status_code == 200
     assert response.json() is True
@@ -172,4 +171,52 @@ def test_delete_multiple_links(auth_token: str, client: TestClient):
     assert response.status_code == 404
     response = client.get(f"/api/links/{link2['id']}", headers=headers)
     assert response.status_code == 404
+
+def test_redirect_non_existing_link(client: TestClient):
+    """
+    Test redirecting to a non-existing link
+    """
+    response = client.get("/api/links/non_existing_code")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Link not found"}
+
+def test_generate_short_code():
+    """
+    Test short code generation.
+    """
+    from app.services.link_service import generate_short_code
+    short_code = generate_short_code()
+    assert len(short_code) == 6
+    assert isinstance(short_code, str)
+
+def test_update_link(auth_token: str, client: TestClient):
+    original_url = "http://example.com/"
+    updated_url = "http://updated-example.com/"
+    custom_code = "custom_code_1"
+    updated_code = "updated_code"
+
+    # Create a link
+    create_response = create_custom_link(client, auth_token, original_url, custom_code)
+    assert create_response.status_code == 200, create_response.text
+    link_data = create_response.json()
+
+    # Update the link
+    headers = {"Authorization": f"Bearer {auth_token}"}
+    update_payload = {
+        "link_id": link_data["id"],
+        "original_url": updated_url,
+        "custom_code": updated_code
+    }
+    update_response = client.put("/api/links/update-link", json=update_payload, headers=headers)
+    assert update_response.status_code == 200, update_response.text
+
+    updated_data = update_response.json()
+    assert updated_data["original_url"] == updated_url
+    assert updated_data["short_code"] == updated_code
+
+    # Verify the updated link
+    get_response = client.get(f"/api/links/{updated_code}")
+    assert get_response.status_code == 200, get_response.text
+    get_data = get_response.json()
+    assert get_data["original_url"] == updated_url
 
